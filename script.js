@@ -12,11 +12,25 @@ const inputDuration = document.querySelector('.form__input--duration');
 const inputCadence = document.querySelector('.form__input--cadence');
 const inputElevation = document.querySelector('.form__input--elevation');
 
-let map;
-let mapEvent;
+class App {
+    #map;
+    #mapEvent;
 
-if(navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(function (position) {
+    constructor() {
+        this._getPosition();
+        form.addEventListener('submit', this._newWorkout.bind(this));
+        this._toggleElevationField();
+    }
+
+    // gets users current position
+    _getPosition() {
+        if(navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(this._loadMap.bind(this), function () { alert('Could not get your position'); });
+        }
+    }
+
+    // load map on current user location
+    _loadMap(position) {
         // gets latitude and longitude from API
         const {latitude} = position.coords;
         const {longitude} = position.coords;
@@ -25,52 +39,59 @@ if(navigator.geolocation) {
 
         const coords = [latitude, longitude];
 
-        map = L.map('map', {closePopupOnClick: false}).setView(coords, 13);
+        console.log(this);
+        this.#map = L.map('map', {closePopupOnClick: false}).setView(coords, 13);
         // map.closePopupOnClick = false;
-        console.log(map);
+        // console.log(map);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        // L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {       // another style theme
+            // L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {       // another style theme
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+        }).addTo(this.#map);
 
         // method from leaflet, handling click on map
-        map.on('click', function (mapE) {
-            mapEvent = mapE;
-            form.classList.remove('hidden');
-            inputDistance.focus();
-            // console.log(mapEvent);
+        // to work event handler function we need to bind the handler to self
+        this.#map.on('click', this._showForm.bind(this));
+    }
 
+    // show the input form when user clicks anywhere on the map
+    _showForm(mapE) {
+        // wont work
+        this.#mapEvent = mapE;
+        form.classList.remove('hidden');
+        inputDistance.focus();
+        // console.log(mapEvent);
+    }
+
+    // switches fields in input form based on workout type
+    _toggleElevationField() {
+        // adds event listener on changing selector input
+        inputType.addEventListener('change', function () {
+            inputElevation.closest('.form__row').classList.toggle('form__row--hidden');
+            inputCadence.closest('.form__row').classList.toggle('form__row--hidden');
         });
-    }, function () {
-        alert('Could not get your position');
-    });
+    }
+
+    // from event listener, display marker
+    _newWorkout(e) {
+        e.preventDefault();
+        // console.log(mapEvent);
+
+        // clear input fields
+        inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value = '';
+
+        // gets coordinates from cursor click position
+        const {lat, lng} = this.#mapEvent.latlng;
+
+        // adds marker on cursor position on the map
+        L.marker([lat, lng]).addTo(this.#map).bindPopup(L.popup({
+            maxWidth: 250,
+            minWidth: 150,
+            autoClose: false,
+            closeOnCLick: false,
+            className: 'running-popup',
+        })).setPopupContent('Workout').openPopup();
+    }
 }
 
-// from event listener
-form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    // console.log(mapEvent);
-
-
-    // clear input fields
-    inputDistance.value = inputDuration.value = inputCadence.value = inputElevation.value = '';
-
-    // gets coordinates from cursor click position
-    const {lat, lng} = mapEvent.latlng;
-
-    // adds marker on cursor position on the map
-    L.marker([lat, lng]).addTo(map).bindPopup(L.popup({
-        maxWidth: 250,
-        minWidth: 150,
-        autoClose: false,
-        closeOnCLick: false,
-        className: 'running-popup',
-    })).setPopupContent('Workout').openPopup();
-});
-
-// adds event listener on changing selector input
-inputType.addEventListener('change', function () {
-    inputElevation.closest('.form__row').classList.toggle('form__row--hidden');
-    inputCadence.closest('.form__row').classList.toggle('form__row--hidden');
-});
+const app = new App();
